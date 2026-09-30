@@ -1,0 +1,3 @@
+name = "mini-call-log-service"
+main = "src/index.js"
+compatibility_date = "2026-09-30"
