@@ -1,0 +1,41 @@
+# Dependencies
+frontend/node_modules/
+
+# Python
+bot/__pycache__/
+bot/*.pyc
+.venv/
+venv/
+
+# Environment / secrets
+.env
+bot/.env
+worker/.env
+frontend/.env
+frontend/.env.*
+!frontend/.env.example
+
+# Cloudflare / Wrangler
+.wrangler/
+
+# Logs
+*.log
+
+# OS / IDE
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# Build output
+frontend/dist/
+frontend/build/
+
+# Python test/cache
+.pytest_cache/
+.coverage
+.venv/
+.wrangler/
+__pycache__/
+*.pyc
+*.log   
