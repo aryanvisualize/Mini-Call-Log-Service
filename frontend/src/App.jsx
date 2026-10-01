@@ -58,12 +58,116 @@ function App() {
         fetchCallDetails(id);
     };
 
+    const [callStatus, setCallStatus] = useState("idle"); // idle, connecting, connected, ending, error
+    const [callStartTime, setCallStartTime] = useState(null);
+    const [activeCallId, setActiveCallId] = useState(null);
+    const [callError, setCallError] = useState(null);
+    const [mediaStream, setMediaStream] = useState(null);
+
+    const handleStartCall = async () => {
+        if (callStatus !== "idle" && callStatus !== "error") return;
+        setCallStatus("connecting");
+        setCallError(null);
+
+        try {
+            // 1. Request microphone access
+            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            setMediaStream(stream);
+
+            // 2. Pipecat Bot Integration
+            // LIMITATION: The Pipecat bot backend (bot.py) is empty.
+            // There is no WebRTC signaling endpoint configured yet.
+            // We bypass the actual bot connection to safely complete the UI and call logging logic.
+            
+            setActiveCallId(`call_web_${Date.now()}`);
+            setCallStartTime(new Date());
+            setCallStatus("connected");
+        } catch (err) {
+            console.error("Call failed to start:", err);
+            setCallError("Could not access microphone or connect to bot.");
+            setCallStatus("error");
+        }
+    };
+
+    const handleEndCall = async () => {
+        if (callStatus !== "connected") return;
+        setCallStatus("ending");
+
+        const endedAt = new Date();
+        const duration = Math.max(0, Math.round((endedAt - callStartTime) / 1000));
+
+        // Clean up media stream
+        if (mediaStream) {
+            mediaStream.getTracks().forEach(track => track.stop());
+            setMediaStream(null);
+        }
+
+        try {
+            // Prepare call record. Transcript and metrics are empty since the bot is not implemented.
+            const callRecord = {
+                id: activeCallId,
+                startedAt: callStartTime.toISOString(),
+                endedAt: endedAt.toISOString(),
+                duration: duration,
+                transcript: [],
+                metrics: {}
+            };
+
+            const response = await fetch(`${API_URL}/calls`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(callRecord)
+            });
+
+            if (!response.ok) {
+                console.error("Failed to log call:", await response.text());
+            } else {
+                fetchCalls(); // Refresh history
+            }
+        } catch (err) {
+            console.error("Error ending call:", err);
+        } finally {
+            setCallStatus("idle");
+            setActiveCallId(null);
+            setCallStartTime(null);
+        }
+    };
+
     return (
         <div className="dashboard-container">
             <header className="dashboard-header">
                 <h1>Mini Call Log</h1>
                 <p>View and analyze saved AI voice calls.</p>
             </header>
+
+            <section className="live-call-section">
+                <div className="live-call-controls">
+                    <h2>Live Voice Call</h2>
+                    <div className="call-actions">
+                        <button 
+                            className={`btn-start ${callStatus === 'idle' || callStatus === 'error' ? '' : 'disabled'}`}
+                            onClick={handleStartCall}
+                            disabled={callStatus !== 'idle' && callStatus !== 'error'}
+                        >
+                            Start Call
+                        </button>
+                        <button 
+                            className={`btn-end ${callStatus === 'connected' ? '' : 'disabled'}`}
+                            onClick={handleEndCall}
+                            disabled={callStatus !== 'connected'}
+                        >
+                            End Call
+                        </button>
+                    </div>
+                    
+                    <div className="call-status-indicator">
+                        <span className={`status-badge ${callStatus}`}>
+                            Status: {callStatus.toUpperCase()}
+                        </span>
+                        {callError && <p className="error-hint">{callError}</p>}
+                    </div>
+                </div>
+            </section>
 
             <div className="dashboard-content">
                 <section className="call-history-section">

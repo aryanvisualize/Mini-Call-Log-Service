@@ -78,6 +78,37 @@ export default {
                     );
                 }
 
+                // Check for duplicate call submission
+                const callExists = await env.DB
+                    .prepare("SELECT id FROM calls WHERE id = ?")
+                    .bind(id)
+                    .first();
+
+                if (callExists) {
+                    return jsonResponse(
+                        { error: "Call already exists" },
+                        { status: 409 }
+                    );
+                }
+
+                // Validate latency metrics
+                const stt = metrics.stt ?? null;
+                const llm = metrics.llm ?? null;
+                const tts = metrics.tts ?? null;
+
+                const validMetrics = [stt, llm, tts].every(
+                    (value) =>
+                        value === null ||
+                        (typeof value === "number" && Number.isFinite(value) && value >= 0)
+                );
+
+                if (!validMetrics) {
+                    return jsonResponse(
+                        { error: "Invalid latency metrics" },
+                        { status: 400 }
+                    );
+                }
+
                 // Build database operations
                 const statements = [
                     env.DB.prepare(`
