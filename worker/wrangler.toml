@@ -1,3 +1,8 @@
 name = "mini-call-log-service"
 main = "src/index.js"
 compatibility_date = "2026-09-30"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "mini-call-log-db"
+database_id = "local-db"
