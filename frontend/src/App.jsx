@@ -53,6 +53,7 @@ function App() {
     }, []);
 
     const handleSelectCall = (id) => {
+        if (selectedCallId === id) return;
         setSelectedCallId(id);
         fetchCallDetails(id);
     };
