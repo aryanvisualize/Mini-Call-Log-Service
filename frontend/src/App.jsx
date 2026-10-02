@@ -75,17 +75,34 @@ function App() {
             setMediaStream(stream);
 
             // 2. Pipecat Bot Integration
-            // LIMITATION: The Pipecat bot backend (bot.py) is empty.
-            // There is no WebRTC signaling endpoint configured yet.
-            // We bypass the actual bot connection to safely complete the UI and call logging logic.
+            const { connectVoice } = await import("./services/voiceClient.js");
             
-            setActiveCallId(`call_web_${Date.now()}`);
-            setCallStartTime(new Date());
-            setCallStatus("connected");
+            await connectVoice(
+                () => {
+                    console.log("WebRTC Connected!");
+                    setActiveCallId(`call_web_${Date.now()}`);
+                    setCallStartTime(new Date());
+                    setCallStatus("connected");
+                },
+                () => {
+                    console.log("WebRTC Disconnected!");
+                    // Handle unexpected disconnect if it happens while connected
+                    if (callStatus === "connected") {
+                        handleEndCall();
+                    }
+                }
+            );
+
         } catch (err) {
             console.error("Call failed to start:", err);
             setCallError("Could not access microphone or connect to bot.");
             setCallStatus("error");
+            
+            // Clean up if we got the mic but failed to connect
+            if (mediaStream) {
+                mediaStream.getTracks().forEach(track => track.stop());
+                setMediaStream(null);
+            }
         }
     };
 
@@ -103,7 +120,11 @@ function App() {
         }
 
         try {
-            // Prepare call record. Transcript and metrics are empty since the bot is not implemented.
+            // Disconnect WebRTC Pipecat Client
+            const { disconnectVoice } = await import("./services/voiceClient.js");
+            await disconnectVoice();
+            
+            // Prepare call record. Transcript and metrics are empty since the bot is not fully implemented.
             const callRecord = {
                 id: activeCallId,
                 startedAt: callStartTime.toISOString(),
