@@ -63,11 +63,13 @@ function App() {
     const [activeCallId, setActiveCallId] = useState(null);
     const [callError, setCallError] = useState(null);
     const [mediaStream, setMediaStream] = useState(null);
+    const [liveTranscript, setLiveTranscript] = useState([]);
 
     const handleStartCall = async () => {
         if (callStatus !== "idle" && callStatus !== "error") return;
         setCallStatus("connecting");
         setCallError(null);
+        setLiveTranscript([]);
 
         try {
             // 1. Request microphone access
@@ -89,6 +91,19 @@ function App() {
                     // Handle unexpected disconnect if it happens while connected
                     if (callStatus === "connected") {
                         handleEndCall();
+                    }
+                },
+                
+                (transcript) => {
+                    if (transcript.final && transcript.text?.trim()) {
+                        const entry = {
+                            speaker: "user",
+                            text: transcript.text.trim()
+                        };
+
+                        console.log("Final transcript:", entry.text);
+
+                        setLiveTranscript((previous) => [...previous, entry]);
                     }
                 }
             );
@@ -130,7 +145,7 @@ function App() {
                 startedAt: callStartTime.toISOString(),
                 endedAt: endedAt.toISOString(),
                 duration: duration,
-                transcript: [],
+                transcript: liveTranscript,
                 metrics: {}
             };
 
