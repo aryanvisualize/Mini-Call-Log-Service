@@ -25,7 +25,7 @@ export const connectVoice = async (onConnected, onDisconnected) => {
 
     // The bot's development runner or small WebRTC server runs on port 7860 by default.
     // Ensure you start the bot with: python bot.py -t webrtc
-    const botUrl = import.meta.env.VITE_BOT_URL || "http://localhost:7860"; // adjust based on actual endpoint
+    const botUrl = import.meta.env.VITE_BOT_URL || "http://localhost:7860/api/offer"; // adjust based on actual endpoint
 
     try {
         await client.connect({
