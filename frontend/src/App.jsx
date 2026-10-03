@@ -1,7 +1,8 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import "./App.css";
 
 function App() {
+    const llmLatencySamplesRef = useRef([]);
     const [calls, setCalls] = useState([]);
     const [loadingCalls, setLoadingCalls] = useState(false);
     const [callsError, setCallsError] = useState(null);
@@ -10,6 +11,8 @@ function App() {
     const [callDetails, setCallDetails] = useState(null);
     const [loadingDetails, setLoadingDetails] = useState(false);
     const [detailsError, setDetailsError] = useState(null);
+    const interimStartedAtRef = useRef(null);
+    const sttLatencySamplesRef = useRef([]);
 
     const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8787";
 
@@ -70,6 +73,9 @@ function App() {
         setCallStatus("connecting");
         setCallError(null);
         setLiveTranscript([]);
+        interimStartedAtRef.current = null;
+        sttLatencySamplesRef.current = [];
+        llmLatencySamplesRef.current = [];
 
         try {
             // 1. Request microphone access
@@ -95,15 +101,52 @@ function App() {
                 },
                 
                 (transcript) => {
-                    if (transcript.final && transcript.text?.trim()) {
-                        const entry = {
-                            speaker: "user",
-                            text: transcript.text.trim()
-                        };
+                    if (!transcript.text?.trim()) return;
 
-                        console.log("Final transcript:", entry.text);
+                    if (!transcript.final) {
+                        if (interimStartedAtRef.current === null) {
+                            interimStartedAtRef.current = performance.now();
+                        }
+                        return;
+                    }
 
-                        setLiveTranscript((previous) => [...previous, entry]);
+                    const entry = {
+                        speaker: "user",
+                        text: transcript.text.trim()
+                    };
+
+                    if (interimStartedAtRef.current !== null) {
+                        const latencyMs = Math.round(
+                            performance.now() - interimStartedAtRef.current
+                        );
+
+                        sttLatencySamplesRef.current.push(latencyMs);
+                        interimStartedAtRef.current = null;
+
+                        console.log("Interim-to-final latency:", latencyMs, "ms");
+                    }
+
+                    console.log("Final transcript:", entry.text);
+                    setLiveTranscript((previous) => [...previous, entry]);
+                },
+                (data) => {
+                    const message = data?.data ?? data;
+
+                    if (message?.type !== "llm_response") return;
+
+                    if (typeof message.latency_ms === "number") {
+                        llmLatencySamplesRef.current.push(message.latency_ms);
+                        console.log("LLM latency:", message.latency_ms, "ms");
+                    }
+
+                    if (message.text?.trim()) {
+                        setLiveTranscript((previous) => [
+                            ...previous,
+                            {
+                                speaker: "assistant",
+                                text: message.text.trim(),
+                            },
+                        ]);
                     }
                 }
             );
@@ -122,6 +165,7 @@ function App() {
     };
 
     const handleEndCall = async () => {
+
         if (callStatus !== "connected") return;
         setCallStatus("ending");
 
@@ -138,7 +182,25 @@ function App() {
             // Disconnect WebRTC Pipecat Client
             const { disconnectVoice } = await import("./services/voiceClient.js");
             await disconnectVoice();
+            const sttSamples = sttLatencySamplesRef.current;
+
+            const averageSttLatency = sttSamples.length
+                ? Math.round(
+                    sttSamples.reduce((sum, value) => sum + value, 0)
+                    / sttSamples.length
+                )
+                : null;
+
             
+
+            const llmSamples = llmLatencySamplesRef.current;
+
+            const averageLlmLatency = llmSamples.length
+                ? Math.round(
+                    llmSamples.reduce((sum, value) => sum + value, 0)
+                    / llmSamples.length
+                )
+                : null;
             // Prepare call record. Transcript and metrics are empty since the bot is not fully implemented.
             const callRecord = {
                 id: activeCallId,
@@ -146,7 +208,10 @@ function App() {
                 endedAt: endedAt.toISOString(),
                 duration: duration,
                 transcript: liveTranscript,
-                metrics: {}
+                metrics: {
+                    stt: averageSttLatency,
+                    llm: averageLlmLatency,
+                }
             };
 
             const response = await fetch(`${API_URL}/calls`, {

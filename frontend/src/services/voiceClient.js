@@ -20,32 +20,27 @@ export const connectVoice = async (
   onConnected,
   onDisconnected,
   onTranscript,
+  onServerMessage,
 ) => {
   const client = getVoiceClient();
-
   client.on("connected", onConnected);
   client.on("disconnected", onDisconnected);
-
-  // Receive speech transcription events from the Python bot.
-
   if (onTranscript) {
     client.on("userTranscript", (data) => {
       console.log("[RTVI] userTranscript event:", data);
       onTranscript(data);
     });
-
+  }
+  if (onServerMessage) {
     client.on("serverMessage", (data) => {
       console.log("[RTVI] serverMessage event:", data);
+      onServerMessage(data);
     });
   }
-
   const botUrl =
     import.meta.env.VITE_BOT_URL || "http://localhost:7860/api/offer";
-
   try {
-    await client.connect({
-      webrtcUrl: botUrl,
-    });
+    await client.connect({ webrtcUrl: botUrl });
   } catch (error) {
     console.error("Failed to connect to Pipecat bot:", error);
     throw error;
