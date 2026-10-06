@@ -1,3 +1,5 @@
 pipecat-ai[webrtc,google,deepgram]==0.0.108
 google-genai
 python-dotenv
+fastapi
+uvicorn[standard]
