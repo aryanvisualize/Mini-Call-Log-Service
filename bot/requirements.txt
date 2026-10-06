@@ -1,1 +1,3 @@
-pipecat-ai[webrtc]==0.0.108
+pipecat-ai[webrtc,google,deepgram]==0.0.108
+google-genai
+python-dotenv

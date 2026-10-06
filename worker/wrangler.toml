@@ -4,5 +4,5 @@ compatibility_date = "2026-09-30"
 
 [[d1_databases]]
 binding = "DB"
-database_name = "mini-call-log-db"
-database_id = "local-db"
+database_name = "vaami-calls-db"
+database_id="7be92838-4485-4507-a753-1331780c9882"
